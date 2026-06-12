@@ -300,10 +300,38 @@ function renderNotFound() {
   `;
 }
 
+function renderLocalServerWarning() {
+  document.title = 'Local Server Required | eDM Helper';
+  viewport.innerHTML = `
+    <section class="content-error">
+      <p class="content-eyebrow">Local file</p>
+      <h1>Unable to load this tool</h1>
+      <p>Please run eDM Helper through its local server instead of opening the HTML file directly.</p>
+    </section>
+  `;
+}
+
+function renderContentError(error) {
+  document.title = 'Content Error | eDM Helper';
+  viewport.innerHTML = `
+    <section class="content-error">
+      <p class="content-eyebrow">Content error</p>
+      <h1>Unable to load this tool</h1>
+      <p>The tool content could not be loaded. Please refresh the page and try again.</p>
+    </section>
+  `;
+  console.error(error);
+}
+
 async function loadRoute(path) {
   const route = ROUTES[path];
   setActiveLink(path);
   closeSidebar();
+
+  if (window.location.protocol === 'file:') {
+    renderLocalServerWarning();
+    return;
+  }
 
   if (!route) {
     renderNotFound();
@@ -327,14 +355,7 @@ async function loadRoute(path) {
     viewport.scrollTop = 0;
     viewport.focus({ preventScroll: true });
   } catch (error) {
-    console.error(error);
-    viewport.innerHTML = `
-      <section class="content-error">
-        <p class="content-eyebrow">Content error</p>
-        <h1>Unable to load this tool</h1>
-        <p>Please run eDM Helper through its local server instead of opening the HTML file directly.</p>
-      </section>
-    `;
+    renderContentError(error);
   }
 }
 
