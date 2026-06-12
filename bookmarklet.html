@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  
+  <!-- Meta Tags -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="eDM Helper Bookmarklet - Browser tools for email marketing">
+  <meta name="keywords" content="edm, bookmarklet, browser, tools, marketing">
+  <meta name="author" content="eDM Helper">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/pages-bookmarklet.css">
+  
+  <title>Bookmarklet - eDM Helper</title>
+  <meta name="theme-color" content="#0f172a" />
+  <!-- Font Awesome - Non-blocking load -->
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
+</head>
+<body>
+  <!-- Initial State Script - Removed -->
+  
+  <header class="header" role="banner">
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      <!-- Home Button -->
+      <div class="nav-left">
+        <a href="index.html" class="nav-link">
+          <i class="fa-solid fa-home"></i>
+          <span>Home</span>
+        </a>
+      </div>
+      
+      <div class="nav-right">
+        <!-- Additional navigation items can be added here -->
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content" role="main">
+    <section class="bookmarklet-section">
+      <div class="container">
+        <div class="page-header">
+          <div class="page-header-content">
+            <h1>
+              <i class="fa-solid fa-bookmark"></i>
+              eDM Helper Bookmarklets
+            </h1>
+            <p class="subtitle">Kumpulan bookmarklet powerful untuk boost productivity daily work Anda</p>
+          </div>
+        </div>
+        
+        <!-- Quick Guide -->
+        <div class="instructions">
+            <h3><i class="fa-solid fa-circle-info"></i> Cara Menggunakan Bookmarklet:</h3>
+            <ol>
+                <li><strong>Drag</strong> tombol bookmarklet di bawah ini ke <strong>bookmark bar</strong> browser Anda</li>
+                <li>Alternatif: <strong>Klik kanan</strong> → <strong>Add to Bookmarks</strong></li>
+                <li>Buka halaman target dan <strong>klik bookmarklet</strong> untuk menjalankan</li>
+            </ol>
+            <div class="browser-notes">
+                <p><strong>Catatan:</strong> Works on Chrome, Firefox, Edge, Safari. Pastikan bookmark bar visible (Ctrl+Shift+B).</p>
+            </div>
+        </div>
+
+        <!-- Search/Filter Section -->
+        <div class="bookmarklet-filter">
+            <input type="text" class="bookmarklet-search" placeholder="Cari bookmarklet..." id="bookmarkletSearch">
+            <button class="bookmarklet-filter-btn" onclick="clearSearch()">
+                <i class="fa-solid fa-times"></i>
+                Clear
+            </button>
+            <button class="bookmarklet-filter-btn" onclick="toggleView()">
+                <i class="fa-solid fa-grip"></i>
+                Grid
+            </button>
+        </div>
+
+        <!-- Bookmarklets Grid -->
+        <div class="bookmarklets-grid" id="bookmarkletsGrid">
+            <!-- Copy Page Source -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-code"></i>
+                    <h3>Copy Page Source</h3>
+                </div>
+                <p>Salin source code lengkap halaman ke clipboard</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}fetch(location.href).then(res=>res.text()).then(source=>{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(source).then(()=>{showToast('\u2705 Source berhasil disalin!','success');}).catch(()=>fallbackCopy(source));}else{fallbackCopy(source);}function fallbackCopy(text){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');showToast('\u2705 Source berhasil disalin!','success');}catch(err){console.error('Gagal menyalin:',err);prompt('Copy manual:',text);}document.body.removeChild(ta);}}).catch(err=>{showToast('\u274c Gagal mengambil source','error');console.error('Gagal mengambil source:',err);});const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Copy Page Source">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Copy Page Source</span>
+                </a>
+            </div>
+
+            <!-- Extract All Links -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-link"></i>
+                    <h3>Extract All Links</h3>
+                </div>
+                <p>Extract semua links dari halaman dalam format yang terstruktur</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}const links=Array.from(document.querySelectorAll('a')).map(a=>({text:a.innerText.trim(),href:a.href,target:a.target||'_self'}));const result=links.map((link,i)=>`${i+1}. ${link.text}\n   URL: ${link.href}\n   Target: ${link.target}`).join('\n\n');console.log('Extracted Links:\n\n'+result);if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(result).then(()=>{showToast('\u2705 Links copied to clipboard!','success');});}else{prompt('Copy manual:',result);}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Extract All Links">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Extract All Links</span>
+                </a>
+            </div>
+
+            <!-- Extract Images -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-image"></i>
+                    <h3>Extract Images</h3>
+                </div>
+                <p>Extract semua URL gambar dari halaman</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}const images=Array.from(document.querySelectorAll('img')).map(img=>img.src).filter(src=>src);const result=images.map((src,i)=>`${i+1}. ${src}`).join('\n');console.log('Extracted Images:\n\n'+result);if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(result).then(()=>{showToast('\u2705 Images copied to clipboard!','success');});}else{prompt('Copy manual:',result);}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Extract Images">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Extract Images</span>
+                </a>
+            </div>
+
+            <!-- View Meta Tags -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-tags"></i>
+                    <h3>View Meta Tags</h3>
+                </div>
+                <p>Tampilkan semua meta tags halaman (SEO, OG, dll)</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}const metas=[];document.querySelectorAll('meta').forEach(meta=>{if(meta.name||meta.property||meta.charset||meta.httpEquiv){let label='';if(meta.name)label='name='+meta.name;else if(meta.property)label='property='+meta.property;else if(meta.charset)label='charset='+meta.charset;else if(meta.httpEquiv)label='http-equiv='+meta.httpEquiv;metas.push(label+': '+meta.content);}});const output='Meta Tags ('+metas.length+'):\n\n'+metas.join('\n');console.log(output);if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(output).then(()=>{showToast('\u2705 Found '+metas.length+' meta tags (copied!)','success');});}else{prompt('Copy meta tags:',output);showToast('Found '+metas.length+' meta tags','info');}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();";" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="View Meta Tags">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">View Meta Tags</span>
+                </a>
+            </div>
+
+            <!-- Remove Element -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-eraser"></i>
+                    <h3>Remove Element</h3>
+                </div>
+                <p>Klik element untuk menghapusnya dari halaman</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}document.body.style.cursor='crosshair';function removeElement(e){e.stopPropagation();e.preventDefault();if(e.target===document.body)return;e.target.remove();document.body.style.cursor='';document.removeEventListener('click',removeElement,true);showToast('Element removed!','success');}document.addEventListener('click',removeElement,true);const instruction=document.createElement('div');instruction.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:10px 15px;border-radius:5px;z-index:10000;font-size:14px;';instruction.textContent='Click any element to remove it';document.body.appendChild(instruction);setTimeout(()=>instruction.remove(),3000);const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Remove Element">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Remove Element</span>
+                </a>
+            </div>
+
+            <!-- Page Info -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-info-circle"></i>
+                    <h3>Page Info</h3>
+                </div>
+                <p>Tampilkan informasi lengkap tentang halaman</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}const info={title:document.title,url:location.href,domain:location.hostname,protocol:location.protocol,path:location.pathname,timestamp:new Date().toISOString(),userAgent:navigator.userAgent,language:navigator.language,cookies:document.cookie?'Enabled':'Disabled',localStorage:Object.keys(localStorage).length+' items',sessionStorage:Object.keys(sessionStorage).length+' items'};const output=Object.entries(info).map(([key,value])=>key.charAt(0).toUpperCase()+key.slice(1)+': '+value).join('\n');console.log('Page Information:\n\n'+output);if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(output).then(()=>{showToast('\u2705 Page info copied! ('+Object.keys(info).length+' items)','success');});}else{prompt('Copy manual:',output);showToast('Page info: '+Object.keys(info).length+' items','info');}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();";" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Page Info">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Page Info</span>
+                </a>
+            </div>
+
+            <!-- Validate HTML -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-check-double"></i>
+                    <h3>HTML Validator</h3>
+                </div>
+                <p>Validate HTML & show errors directly on page</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}showToast('Validating HTML...','info');const html=document.documentElement.outerHTML;const errors=[];const warnings=[];const tags=html.match(/<[^>]+>/g)||[];tags.forEach((tag,index)=>{if(tag.match(/<br>/i))warnings.push('Line '+index+': <br> should be <br />');if(tag.match(/<img[^>]*(?!alt=)[^>]*>/i))errors.push('Line '+index+': Missing alt attribute on img');});const output='HTML Validation Results:\n\nErrors: '+errors.length+'\nWarnings: '+warnings.length+'\n\n'+errors.concat(warnings).join('\n');console.log(output);if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(output).then(()=>{showToast('\u2705 Found '+errors.length+' errors, '+warnings.length+' warnings (copied!)','success');});}else{prompt('Copy results:',output);showToast('Found '+errors.length+' errors, '+warnings.length+' warnings','warning');}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();";" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="HTML Validator">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">HTML Validator</span>
+                </a>
+            </div>
+
+            <!-- Typo Scanner -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-spell-check"></i>
+                    <h3>Typo Scanner</h3>
+                </div>
+                <p>Scan & highlight typos directly on the page</p>
+                <a href="javascript:(function(){let toastQueue=[];let showingToast=false;function showToast(msg,type){toastQueue.push({msg,type});if(!showingToast){processQueue();}function processQueue(){if(toastQueue.length===0){showingToast=false;return;}showingToast=true;const {msg,type}=toastQueue.shift();const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>{toast.style.animation='slideOut 0.3s ease';setTimeout(()=>{toast.remove();processQueue();},300);},3000);}}showToast('Scanning for typos...','info');function getPageText(){let text='';const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);let node;while(node=walker.nextNode()){const parent=node.parentNode;const parentClass=parent.className||'';if(parent.tagName!=='SCRIPT'&&parent.tagName!=='STYLE'&&parent.tagName!=='CODE'&&parentClass!=='bookmarklet-btn'){text+=node.textContent+' ';}}return text.trim().replace(/\s+/g,' ').substring(0,2000);}const text=getPageText();const commonTypos={fetc:'fetch',websit:'website',bekeja:'bekerja',meblokir:'memblokir',beberap:'beberapa',foldr:'folder',teh:'the',adn:'and',recieve:'receive',beleive:'believe',occured:'occurred',untill:'until',wich:'which',begining:'beginning',neccessary:'necessary',seperate:'separate',definately:'definitely',comming:'coming',sucess:'success',thier:'their',tommorow:'tomorrow',writting:'writing'};let typosFound=[];const words=text.toLowerCase().split(/\s+/);words.forEach(word=>{const cleanWord=word.replace(/[^\w]/g,'');if(commonTypos[cleanWord]){typosFound.push(cleanWord+' -> '+commonTypos[cleanWord]);}});console.log('Found typos:',typosFound);if(typosFound.length>0){const output='Typos Found:\n\n'+typosFound.join('\n');console.log(output);if(navigator.clipboard){navigator.clipboard.writeText(output).then(()=>{showToast('✅ Found '+typosFound.length+' typos (copied!)','success');});}else{prompt('Copy typos:',output);showToast('Found '+typosFound.length+' typos','warning');}}else{showToast('✅ No typos found!','success');}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}';document.head.appendChild(style);})();" 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Typo Scanner">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Typo Scanner</span>
+                </a>
+            </div>
+
+            <!-- Local to HSBC URL Converter -->
+            <div class="bookmarklet-card">
+                <div class="bookmarklet-header">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    <h3>Local to HSBC URL</h3>
+                </div>
+                <p>Convert localhost URL to HSBC mail server</p>
+                <a href="javascript:(function(){function showToast(msg,type){const toast=document.createElement('div');toast.style.cssText='position:fixed;top:20px;right:20px;background:#333;color:white;padding:12px 20px;border-radius:4px;z-index:10000;animation:slideIn 0.3s ease';toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}const currentUrl=window.location.href;if(currentUrl.includes('127.0.0.1:5500')){const newUrl=currentUrl.replace('http://127.0.0.1:5500','https://mail.hsbc.com.hk/id');if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(newUrl).then(()=>{showToast('\u2705 URL copied!','success');}).catch(()=>{fallbackCopy(newUrl);});}else{fallbackCopy(newUrl);}function fallbackCopy(text){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');showToast('\u2705 URL copied!','success');}catch(err){console.error('Gagal menyalin:',err);prompt('Copy manual URL:',text);}document.body.removeChild(ta);}}else{showToast('\u274c URL tidak mengandung 127.0.0.1:5500','error');}const style=document.createElement('style');style.textContent='@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}';document.head.appendChild(style);})();"; 
+                   class="bookmarklet-btn" 
+                   draggable="true"
+                   data-tool="Local to HSBC URL">
+                    <i class="fa-solid fa-play"></i>
+                    <span class="btn-text">Local to HSBC URL</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- No Results Message -->
+        <div class="no-results" id="noResults">
+            <i class="fa-solid fa-search"></i>
+            <p>Tidak ada bookmarklet yang ditemukan</p>
+            <p style="font-size: var(--font-size-sm); margin-top: var(--space-2);">Coba kata kunci lain</p>
+        </div>
+
+        <!-- Manual Script Section -->
+        <div class="instructions">
+            <h3><i class="fa-solid fa-terminal"></i> Script Manual (Console)</h3>
+            <p>Salin dan jalankan script di console browser (F12 → Console):</p>
+            <div class="script-container">
+                <textarea id="manual-script" readonly>// Copy Page Source Script
+(function(){
+    fetch(location.href)
+    .then(res => res.text())
+    .then(source => {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(source)
+                .then(() => console.log('\u2705 Source berhasil disalin!'))
+                .catch(() => fallbackCopy(source));
+        } else {
+            fallbackCopy(source);
+        }
+
+        function fallbackCopy(text){
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                document.execCommand('copy');
+                console.log('\u2705 Source berhasil disalin!');
+            } catch(err) {
+                console.error('Gagal menyalin:', err);
+                prompt('Copy manual:', text);
+            }
+            document.body.removeChild(ta);
+        }
+    })
+    .catch(err => console.error('\u274c Gagal mengambil source:', err));
+})();</textarea>
+                <button id="copy-script-btn" class="copy-btn" onclick="copyManualScript()">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Copy Script</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="instructions">
+            <h3><i class="fa-solid fa-keyboard"></i> Shortcut Keyboard Berguna:</h3>
+            <div class="shortcuts-grid">
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>U</kbd>
+                    <span>View source code</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>
+                    <span>Inspect element</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd>
+                    <span>Open console</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>
+                    <span>Toggle bookmark bar</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>A</kbd>
+                    <span>Select all</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>C</kbd>
+                    <span>Copy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="tips-section">
+            <h3><i class="fa-solid fa-lightbulb"></i> Pro Tips:</h3>
+            <ul>
+                <li>Bookmarklets bekerja lebih baik di modern browsers (Chrome, Firefox, Edge, Safari 12+)</li>
+                <li>Beberapa websit mungkin memblokir fetc API - gunakan view source sebagai alternatif</li>
+                <li>Simpan bookmarklets di folder khusus untuk organisasi yang lebih baik</li>
+                <li>Test bookmarklets di development environment terlebih dahulu</li>
+            </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-left">
+          <p class="footer-text">
+            &copy; <span id="footer-year">2025</span> eDM Helper <span class="footer-version" data-version>v1.0.0</span>. 
+            Built with <i class="fa-solid fa-heart"></i> for developers.
+          </p>
+        </div>
+        <div class="footer-right">
+          <nav class="footer-links" aria-label="Social media links">
+            <a href="https://github.com/budifelt" target="_blank" class="footer-link" aria-label="GitHub">
+              <i class="fa-brands fa-github"></i>
+            </a>
+            <a href="https://instagram.com/budife.psd/" target="_blank" class="footer-link" aria-label="Instagram">
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+            <a href="https://linkedin.com/in/budifelt/" target="_blank" class="footer-link" aria-label="LinkedIn">
+              <i class="fa-brands fa-linkedin"></i>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Settings Modal -->
+  <div id="settings-container"></div>
+
+<script src="js/footer.js" defer></script>
+<script src="js/version-config.js" defer></script>
+<!-- All functionality in one inline script -->
+<script>
+// Search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('bookmarkletSearch');
+    const cards = document.querySelectorAll('.bookmarklet-card');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            cards.forEach(card => {
+                const title = card.querySelector('h3').textContent.toLowerCase();
+                const desc = card.querySelector('p').textContent.toLowerCase();
+                card.style.display = (title.includes(term) || desc.includes(term)) ? 'block' : 'none';
+            });
+        });
+    }
+
+    // Add drag event listeners to bookmarklet buttons
+    const bookmarkletBtns = document.querySelectorAll('.bookmarklet-btn');
+    bookmarkletBtns.forEach(btn => {
+        btn.addEventListener('dragstart', function(e) {
+            const toolName = this.getAttribute('data-tool');
+            showToast(`Dragging ${toolName}...`, 'info', 2000);
+        });
+
+        btn.addEventListener('dragend', function(e) {
+            const toolName = this.getAttribute('data-tool');
+            showToast(`${toolName} ready! Add to your bookmarks bar.`, 'success', 3000);
+        });
+    });
+});
+
+// Global functions for onclick
+function clearSearch() {
+    const search = document.getElementById('bookmarkletSearch');
+    if (search) {
+        search.value = '';
+        search.dispatchEvent(new Event('input'));
+        showToast('Search cleared', 'info', 1500);
+    }
+}
+
+function toggleView() {
+    const grid = document.getElementById('bookmarkletsGrid');
+    const btn = document.querySelector('.bookmarklet-filter-btn:last-child');
+    if (grid && btn) {
+        grid.classList.toggle('list-view');
+        const isListView = grid.classList.contains('list-view');
+        btn.innerHTML = isListView ? 
+            '<i class="fa-solid fa-list"></i> List' : 
+            '<i class="fa-solid fa-grip"></i> Grid';
+        // Removed toast notification for better performance
+    }
+}
+
+// Toast notification function - Only for button success
+function showToast(message, type = 'success', duration = 3000) {
+    // Only show toast for button-related success messages
+    if (type !== 'success' || (!message.toLowerCase().includes('copied') && !message.toLowerCase().includes('clipboard'))) {
+        return;
+    }
+    
+    // Create toast container if it doesn't exist
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container button-toast'; // Add button-toast class
+        document.body.appendChild(container);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    // Icon mapping
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+
+    toast.innerHTML = `
+        <i class="fa-solid ${icons[type]} toast-icon"></i>
+        <div class="toast-content">
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <i class="fa-solid fa-times"></i>
+        </button>
+    `;
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Auto remove
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+function copyManualScript() {
+    const textarea = document.getElementById('manual-script');
+    if (textarea) {
+        textarea.select();
+        document.execCommand('copy');
+        showToast('Script copied to clipboard!', 'success');
+    }
+}
+</script>
+</body>
+</html>

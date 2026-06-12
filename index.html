@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="eDM Helper - Tools for email marketing and productivity">
+  <meta name="theme-color" content="#F18C8E">
+  <base href="/">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <title>eDM Helper</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Main navigation">
+      <a class="sidebar-brand" href="/" data-route>
+        <span class="brand-mark" aria-hidden="true">e</span>
+        <span>
+          <strong>eDM Helper</strong>
+          <small>Reference &amp; tools</small>
+        </span>
+      </a>
+
+      <nav class="sidebar-navigation">
+        <div class="nav-group">
+          <p class="nav-group-label">Database</p>
+          <a class="sidebar-link" href="/database-checker" data-route>
+            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+            <span>Database Checker</span>
+          </a>
+          <a class="sidebar-link" href="/database-generator" data-route>
+            <i class="fa-solid fa-database" aria-hidden="true"></i>
+            <span>Database Generator</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <p class="nav-group-label">Tools</p>
+          <a class="sidebar-link" href="/bookmarklet" data-route>
+            <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
+            <span>Bookmarklet</span>
+          </a>
+          <a class="sidebar-link" href="/campaign-counter" data-route>
+            <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+            <span>Campaign Counter</span>
+          </a>
+          <a class="sidebar-link" href="/config-edm" data-route>
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+            <span>Config eDM</span>
+          </a>
+          <a class="sidebar-link" href="/layout-checker" data-route>
+            <i class="fa-solid fa-ruler-combined" aria-hidden="true"></i>
+            <span>Layout Checker</span>
+          </a>
+          <a class="sidebar-link" href="/wfh-tracker" data-route>
+            <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+            <span>WFH Tracker</span>
+          </a>
+        </div>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <p>&copy; <span id="footer-year"></span> eDM Helper</p>
+        <div class="sidebar-socials" aria-label="Social links">
+          <a href="https://github.com/budifelt" target="_blank" rel="noreferrer" aria-label="GitHub">
+            <i class="fa-brands fa-github"></i>
+          </a>
+          <a href="https://instagram.com/budife.psd/" target="_blank" rel="noreferrer" aria-label="Instagram">
+            <i class="fa-brands fa-instagram"></i>
+          </a>
+          <a href="https://linkedin.com/in/budifelt/" target="_blank" rel="noreferrer" aria-label="LinkedIn">
+            <i class="fa-brands fa-linkedin"></i>
+          </a>
+        </div>
+      </footer>
+    </aside>
+
+    <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+
+    <section class="app-content">
+      <header class="mobile-header">
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-controls="app-sidebar" aria-expanded="false">
+          <i class="fa-solid fa-bars" aria-hidden="true"></i>
+          <span class="sr-only">Open navigation</span>
+        </button>
+        <a href="/" data-route>eDM Helper</a>
+      </header>
+
+      <main class="content-viewport" id="content-viewport" tabindex="-1">
+        <div class="content-loading" role="status">
+          <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
+          <span>Loading tool...</span>
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <script src="/js/version-config.js"></script>
+  <script src="/js/app.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  
+  <!-- Meta Tags -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="eDM Helper Layout Checker - Test and validate your layouts">
+  <meta name="keywords" content="edm, layout, checker, validation, tools">
+  <meta name="author" content="eDM Helper">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/pages-layout-checker.css">
+  
+  <title>Layout Checker - eDM Helper</title>
+  <meta name="theme-color" content="#0f172a" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <!-- CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material.min.css" />
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <header class="header" role="banner">
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      <!-- Home Button -->
+      <div class="nav-left">
+        <a href="index.html" class="nav-link">
+          <i class="fa-solid fa-home"></i>
+          <span>Home</span>
+        </a>
+      </div>
+      
+      <div class="nav-right">
+        <!-- Additional navigation items can be added here -->
+      </div>
+    </nav>
+  </header>
+
+<!-- Main Content -->
+<main id="main-content" role="main">
+  <div class="container">
+    <h1 class="lc-hero"><i class="fa-solid fa-magnifying-glass-chart"></i> Layout Checker</h1>
+    <p class="lc-subtitle">Advanced HTML Layout Analysis Tool</p>
+
+<div class="lc-input-group">
+  <input type="text" id="originalUrlInput" placeholder="Enter full URL of the HTML file" class="lc-input" />
+  <button id="downloadBtn" class="lc-btn lc-btn-success hidden">Download</button>
+  <button id="manualPasteBtn" class="lc-btn lc-btn-info hidden">Open in New Tab</button>
+  <button id="textModeBtn" class="lc-btn lc-btn-warning hidden">Text Mode</button>
+  
+  <!-- Progress Indicator -->
+  <div id="progressContainer" class="lc-progress-container hidden">
+    <div class="lc-progress-content">
+      <div class="lc-progress-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="spin">
+          <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"/>
+        </svg>
+      </div>
+      <span id="progressText" class="lc-progress-text">Processing...</span>
+      <button id="stopBtn" class="lc-btn lc-btn-error lc-btn-sm">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18,18H6V6H18V18Z"/>
+        </svg>
+        Stop
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="lc-main-layout">
+  <!-- Left Column: KRHRED Values -->
+  <div class="lc-sidebar">
+    <label for="krhredInput" class="lc-label">KRHRED Values:</label>
+    <textarea id="krhredInput" placeholder="Check database di brickstreet dan generate value sampai muncul, ctrl + A, lalu paste ke sini!" class="lc-textarea"></textarea>
+    <div class="lc-button-group">
+      <button id="applyKrhredBtn" class="lc-btn lc-btn-success">Apply values</button>
+      <button id="checkLayoutBtn" class="lc-btn lc-btn-primary">Check Layout</button>
+      <button id="addKrhredBtn" class="lc-btn lc-btn-info">Add Unit</button>
+      <button id="clearAllBtn" class="lc-btn lc-btn-error">Clear Values</button>
+    </div>
+  </div>
+
+  <!-- Right Column: CodeMirror + KRHRED Units -->
+  <div class="lc-content">
+    <div class="lc-content-section">
+      <!-- HTML Content (CodeMirror) -->
+      <div>
+        <label for="htmlInput" class="lc-label">HTML Content:</label>
+        <textarea id="htmlInput" placeholder="Paste your HTML content here" class="lc-textarea lc-textarea-sm"></textarea>
+      </div>
+
+      <!-- KRHRED Units Container (4x2 grid) -->
+      <div id="krhredUnitsContainer" class="lc-units-container">
+        <div class="lc-units-header">
+          <label class="lc-units-label">KRHRED Units</label>
+          <div id="inputGrid" class="lc-input-grid">
+            <!-- Row 1 -->
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_30" name="krhred_unit_30" placeholder="30" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_31" name="krhred_unit_31" placeholder="31" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_32" name="krhred_unit_32" placeholder="32" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_33" name="krhred_unit_33" placeholder="33" class="lc-input-field" />
+            </div>
+            <!-- Row 2 -->
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_34" name="krhred_unit_34" placeholder="34" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_35" name="krhred_unit_35" placeholder="35" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_36" name="krhred_unit_36" placeholder="36" class="lc-input-field" />
+            </div>
+            <div class="lc-input-col">
+              <input type="text" id="krhred_unit_37" name="krhred_unit_37" placeholder="37" class="lc-input-field" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- Footer -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-left">
+          <p class="footer-text">
+            &copy; <span id="footer-year">2025</span> eDM Helper <span class="footer-version" data-version>v1.0.0</span>. 
+            Built with <i class="fa-solid fa-heart"></i> for developers.
+          </p>
+        </div>
+        <div class="footer-right">
+          <nav class="footer-links" aria-label="Social media links">
+            <a href="https://github.com/budifelt" target="_blank" class="footer-link" aria-label="GitHub">
+              <i class="fa-brands fa-github"></i>
+            </a>
+            <a href="https://instagram.com/budife.psd/" target="_blank" class="footer-link" aria-label="Instagram">
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+            <a href="https://linkedin.com/in/budifelt/" target="_blank" class="footer-link" aria-label="LinkedIn">
+              <i class="fa-brands fa-linkedin"></i>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+<!-- CodeMirror JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="js/footer.js" defer></script>
+<script src="js/version-config.js" defer></script>
+<script src="js/pages-layout-checker.js" defer></script>
+</body>
+</html>
