@@ -1,34 +1,36 @@
+const BASE_PATH = window.location.hostname.includes('github.io') ? '/beta-uat' : '';
+
 const ROUTES = {
   '/': {
-    content: '/content/home.md',
+    content: 'home.md',
     label: 'Overview'
   },
   '/bookmarklet': {
-    content: '/content/bookmarklet.md',
+    content: 'bookmarklet.md',
     label: 'Bookmarklet'
   },
   '/campaign-counter': {
-    content: '/content/campaign-counter.md',
+    content: 'campaign-counter.md',
     label: 'Campaign Counter'
   },
   '/config-edm': {
-    content: '/content/config-edm.md',
+    content: 'config-edm.md',
     label: 'Config eDM'
   },
   '/database-checker': {
-    content: '/content/database-checker.md',
+    content: 'database-checker.md',
     label: 'Database Checker'
   },
   '/database-generator': {
-    content: '/content/database-generator.md',
+    content: 'database-generator.md',
     label: 'Database Generator'
   },
   '/layout-checker': {
-    content: '/content/layout-checker.md',
+    content: 'layout-checker.md',
     label: 'Layout Checker'
   },
   '/wfh-tracker': {
-    content: '/content/wfh-tracker.md',
+    content: 'wfh-tracker.md',
     label: 'WFH Tracker'
   }
 };
@@ -49,6 +51,19 @@ const sidebar = document.getElementById('app-sidebar');
 const backdrop = document.getElementById('sidebar-backdrop');
 const menuToggle = document.getElementById('menu-toggle');
 
+function withBasePath(path) {
+  const absolutePath = path.startsWith('/') ? path : `/${path}`;
+  return `${BASE_PATH}${absolutePath}` || '/';
+}
+
+function stripBasePath(pathname) {
+  if (BASE_PATH && pathname.startsWith(BASE_PATH)) {
+    return pathname.slice(BASE_PATH.length) || '/';
+  }
+
+  return pathname || '/';
+}
+
 function normalizePath(pathname) {
   if (LEGACY_PATHS[pathname]) {
     return LEGACY_PATHS[pathname];
@@ -59,6 +74,25 @@ function normalizePath(pathname) {
   }
 
   return pathname;
+}
+
+function getCurrentPath() {
+  let path = window.location.pathname;
+  if (path.startsWith(BASE_PATH)) path = path.slice(BASE_PATH.length);
+  if (!path || path === '/') return '/';
+  return normalizePath(path);
+}
+
+function configureRouteLinks() {
+  document.querySelectorAll('a[data-route]').forEach((link) => {
+    const currentHref = link.getAttribute('href') || '/';
+    const routePath = currentHref === './'
+      ? '/'
+      : normalizePath(stripBasePath(new URL(currentHref, window.location.href).pathname));
+
+    link.dataset.routePath = routePath;
+    link.setAttribute('href', withBasePath(routePath));
+  });
 }
 
 function parseFrontmatter(source) {
@@ -165,7 +199,7 @@ function renderMarkdown(source) {
 
 function setActiveLink(path) {
   document.querySelectorAll('.sidebar-link').forEach((link) => {
-    const active = link.getAttribute('href') === path;
+    const active = link.dataset.routePath === path;
     link.classList.toggle('active', active);
     if (active) {
       link.setAttribute('aria-current', 'page');
@@ -214,7 +248,7 @@ function renderPage(route, markdown) {
   const description = attributes.description || '';
   const icon = attributes.icon || 'fa-solid fa-wand-magic-sparkles';
   const category = attributes.category || 'eDM Helper';
-  const tool = attributes.tool;
+  const tool = attributes.tool ? withBasePath(attributes.tool) : '';
 
   document.title = `${title} | eDM Helper`;
 
@@ -261,7 +295,7 @@ function renderNotFound() {
       <p class="content-eyebrow">404</p>
       <h1>Page not found</h1>
       <p>The requested eDM Helper tool does not exist.</p>
-      <a href="/" data-route>Back to overview</a>
+      <a href="${withBasePath('/')}" data-route data-route-path="/">Back to overview</a>
     </section>
   `;
 }
@@ -284,9 +318,10 @@ async function loadRoute(path) {
   `;
 
   try {
-    const response = await fetch(route.content, { cache: 'no-cache' });
+    const contentUrl = `${BASE_PATH}/content/${route.content}`;
+    const response = await fetch(contentUrl, { cache: 'no-cache' });
     if (!response.ok) {
-      throw new Error(`Unable to load ${route.content}: ${response.status}`);
+      throw new Error(`Unable to load ${contentUrl}: ${response.status}`);
     }
     renderPage(route, await response.text());
     viewport.scrollTop = 0;
@@ -305,10 +340,11 @@ async function loadRoute(path) {
 
 function navigate(path, options = {}) {
   const normalized = normalizePath(path);
-  if (!options.replace && normalized !== window.location.pathname) {
-    window.history.pushState({}, '', normalized);
-  } else if (options.replace || normalized !== window.location.pathname) {
-    window.history.replaceState({}, '', normalized);
+  const browserPath = withBasePath(normalized);
+  if (!options.replace && browserPath !== window.location.pathname) {
+    window.history.pushState({}, '', browserPath);
+  } else if (options.replace || browserPath !== window.location.pathname) {
+    window.history.replaceState({}, '', browserPath);
   }
   loadRoute(normalized);
 }
@@ -323,11 +359,11 @@ document.addEventListener('click', (event) => {
   if (url.origin !== window.location.origin) return;
 
   event.preventDefault();
-  navigate(url.pathname);
+  navigate(normalizePath(stripBasePath(url.pathname)));
 });
 
 window.addEventListener('popstate', () => {
-  loadRoute(normalizePath(window.location.pathname));
+  loadRoute(getCurrentPath());
 });
 
 menuToggle.addEventListener('click', () => {
@@ -341,8 +377,11 @@ backdrop.addEventListener('click', closeSidebar);
 
 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-const initialPath = normalizePath(window.location.pathname);
-if (initialPath !== window.location.pathname) {
-  window.history.replaceState({}, '', initialPath);
+configureRouteLinks();
+
+const initialPath = getCurrentPath();
+const initialBrowserPath = withBasePath(initialPath);
+if (initialBrowserPath !== window.location.pathname) {
+  window.history.replaceState({}, '', initialBrowserPath);
 }
 loadRoute(initialPath);

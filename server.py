@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 PORT = 8000
 
 class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    project_prefix = "/beta-uat"
+
     app_routes = {
         "/",
         "/bookmarklet",
@@ -30,15 +32,26 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         request = urlsplit(self.path)
+        is_project_path = (
+            request.path == self.project_prefix
+            or request.path.startswith(f"{self.project_prefix}/")
+        )
+        app_path = request.path[len(self.project_prefix):] if is_project_path else request.path
+        app_path = app_path or "/"
 
-        if request.path in self.legacy_routes and request.query != "embed=1":
+        if app_path in self.legacy_routes and request.query != "embed=1":
             self.send_response(301)
-            self.send_header("Location", self.legacy_routes[request.path])
+            prefix = self.project_prefix if is_project_path else ""
+            self.send_header("Location", f"{prefix}{self.legacy_routes[app_path]}")
             self.end_headers()
             return
 
-        if request.path in self.app_routes:
+        if app_path in self.app_routes:
             self.path = "/index.html"
+        elif is_project_path:
+            self.path = app_path
+            if request.query:
+                self.path += f"?{request.query}"
 
         super().do_GET()
 
