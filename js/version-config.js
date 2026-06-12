@@ -16,7 +16,7 @@ function generateBuildNumber() {
 // Version Configuration
 // \u26a0\ufe0f UBAH BAGIAN INI SAAT UPDATE VERSI MANUAL \u26a0\ufe0f
 const VERSION_CONFIG = {
-  version: '4.6.0',                    // ← GANTI VERSI DI SINI (contoh: '1.2.0', '2.0.0')
+  version: '6.0.1',                    // ← GANTI VERSI DI SINI (contoh: '1.2.0', '2.0.0')
   buildDate: new Date().toISOString(),        // ← OTOMATIS, tidak perlu diganti
   buildNumber: generateBuildNumber(),           // ← OTOMATIS, tidak perlu diganti
   environment: 'development',                 // ← GANTI JIKA PERLU (production/development)

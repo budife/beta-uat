@@ -51,6 +51,41 @@ const sidebar = document.getElementById('app-sidebar');
 const backdrop = document.getElementById('sidebar-backdrop');
 const menuToggle = document.getElementById('menu-toggle');
 
+const TOOL_META = {
+  '/bookmarklet': {
+    icon: 'fa-solid fa-bookmark',
+    label: 'Bookmarklet'
+  },
+  '/campaign-counter': {
+    icon: 'fa-solid fa-chart-line',
+    label: 'Campaign Counter'
+  },
+  '/config-edm': {
+    icon: 'fa-solid fa-sliders',
+    label: 'Config eDM'
+  },
+  '/database-checker': {
+    icon: 'fa-solid fa-circle-check',
+    label: 'Database Checker'
+  },
+  '/database-generator': {
+    icon: 'fa-solid fa-database',
+    label: 'Database Generator'
+  },
+  '/layout-checker': {
+    icon: 'fa-solid fa-ruler-combined',
+    label: 'Layout Checker'
+  },
+  '/wfh-tracker': {
+    icon: 'fa-solid fa-calendar-days',
+    label: 'WFH Tracker'
+  }
+};
+
+function getVersion() {
+  return typeof VERSION_CONFIG !== 'undefined' ? VERSION_CONFIG.version : '6.0.1';
+}
+
 function withBasePath(path) {
   const absolutePath = path.startsWith('/') ? path : `/${path}`;
   return `${BASE_PATH}${absolutePath}` || '/';
@@ -138,6 +173,14 @@ function inlineMarkdown(value) {
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 
+function slugifyHeading(value) {
+  return value
+    .toLowerCase()
+    .replace(/<[^>]+>/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function renderMarkdown(source) {
   if (!source) return '';
 
@@ -145,6 +188,8 @@ function renderMarkdown(source) {
   const html = [];
   let paragraph = [];
   let listType = null;
+  let sectionOpen = false;
+  let subsectionOpen = false;
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
@@ -167,7 +212,24 @@ function renderMarkdown(source) {
       flushParagraph();
       closeList();
       const level = heading[1].length;
-      html.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+      const headingHtml = inlineMarkdown(heading[2]);
+      const headingId = slugifyHeading(heading[2]);
+
+      if (level === 2) {
+        if (subsectionOpen) {
+          html.push('</div>');
+          subsectionOpen = false;
+        }
+        if (sectionOpen) html.push('</section>');
+        html.push(`<section class="markdown-section" data-section="${headingId}">`);
+        sectionOpen = true;
+      } else if (level === 3) {
+        if (subsectionOpen) html.push('</div>');
+        html.push('<div class="markdown-subsection">');
+        subsectionOpen = true;
+      }
+
+      html.push(`<h${level} id="${headingId}">${headingHtml}</h${level}>`);
       return;
     }
 
@@ -194,7 +256,97 @@ function renderMarkdown(source) {
 
   flushParagraph();
   closeList();
+  if (subsectionOpen) html.push('</div>');
+  if (sectionOpen) html.push('</section>');
   return html.join('');
+}
+
+function configureMarkdownLinks(container) {
+  container.querySelectorAll('a[href]').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#')) return;
+
+    const url = new URL(href, window.location.origin);
+    if (url.origin !== window.location.origin) {
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      return;
+    }
+
+    const routePath = normalizePath(stripBasePath(url.pathname));
+    if (!ROUTES[routePath]) return;
+
+    link.dataset.route = '';
+    link.dataset.routePath = routePath;
+    link.setAttribute('href', withBasePath(routePath));
+  });
+}
+
+function enhanceHomeDashboard(container) {
+  const quickAccess = container.querySelector('[data-section="quick-access"]');
+  quickAccess?.querySelectorAll('li').forEach((item) => {
+    const link = item.querySelector('a[data-route-path]');
+    const meta = link ? TOOL_META[link.dataset.routePath] : null;
+    if (!link || !meta) return;
+
+    const description = Array.from(item.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join(' ')
+      .trim()
+      .replace(/^-\s*/, '');
+
+    Array.from(item.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .forEach((node) => node.remove());
+
+    item.classList.add('quick-access-item');
+    link.insertAdjacentHTML(
+      'afterbegin',
+      `<span class="quick-access-icon"><i class="${meta.icon}" aria-hidden="true"></i></span>`
+    );
+    link.insertAdjacentHTML(
+      'beforeend',
+      '<i class="fa-solid fa-arrow-right quick-access-arrow" aria-hidden="true"></i>'
+    );
+    if (description) {
+      item.insertAdjacentHTML(
+        'beforeend',
+        `<span class="quick-access-description">${escapeHtml(description)}</span>`
+      );
+    }
+  });
+
+  const sitemap = container.querySelector('[data-section="tool-sitemap"]');
+  sitemap?.querySelectorAll('.markdown-subsection').forEach((section) => {
+    const heading = section.querySelector('h3');
+    const count = section.querySelectorAll('li').length;
+    if (!heading) return;
+    heading.insertAdjacentHTML('beforeend', `<span class="section-count">${count}</span>`);
+  });
+
+  const updates = container.querySelector('[data-section="recent-updates"]');
+  updates?.querySelector('li')?.classList.add('latest-update');
+
+  const usefulLinks = container.querySelector('[data-section="useful-links"]');
+  usefulLinks?.querySelectorAll('li').forEach((item) => {
+    const link = item.querySelector('a');
+    if (!link) return;
+
+    let icon = 'fa-solid fa-sitemap';
+    if (link.href.includes('/issues')) icon = 'fa-solid fa-circle-exclamation';
+    if (link.href.includes('github.com') && !link.href.includes('/issues')) icon = 'fa-brands fa-github';
+    link.insertAdjacentHTML('afterbegin', `<i class="${icon}" aria-hidden="true"></i>`);
+  });
+
+  const systemInfo = container.querySelector('[data-section="system-info"]');
+  if (systemInfo) {
+    const list = systemInfo.querySelector('ul');
+    list?.insertAdjacentHTML(
+      'afterbegin',
+      `<li><strong>Version:</strong> <code>${escapeHtml(getVersion())}</code></li>`
+    );
+  }
 }
 
 function setActiveLink(path) {
@@ -249,12 +401,22 @@ function renderPage(route, markdown) {
   const icon = attributes.icon || 'fa-solid fa-wand-magic-sparkles';
   const category = attributes.category || 'eDM Helper';
   const tool = attributes.tool ? withBasePath(attributes.tool) : '';
+  const isHome = route.content === 'home.md';
 
   document.title = `${title} | eDM Helper`;
 
   const intro = `
     <header class="content-intro">
-      <p class="content-eyebrow">${escapeHtml(category)}</p>
+      <div class="content-intro-topline">
+        <p class="content-eyebrow">${escapeHtml(category)}</p>
+        ${isHome ? `
+          <div class="home-meta" aria-label="Application information">
+            <span class="version-badge">v${escapeHtml(getVersion())}</span>
+            <span class="status-badge"><span class="status-dot"></span>All systems operational</span>
+            <span class="tool-count-badge">${Object.keys(TOOL_META).length} tools</span>
+          </div>
+        ` : ''}
+      </div>
       <h1 class="content-title">
         <i class="${escapeHtml(icon)}" aria-hidden="true"></i>
         <span>${escapeHtml(title)}</span>
@@ -281,6 +443,15 @@ function renderPage(route, markdown) {
     : '';
 
   viewport.innerHTML = `<div class="content-page">${intro}${markdownContent}${toolFrame}</div>`;
+
+  const markdownContainer = viewport.querySelector('.markdown-content');
+  if (markdownContainer) {
+    configureMarkdownLinks(markdownContainer);
+    if (isHome) {
+      markdownContainer.classList.add('home-dashboard');
+      enhanceHomeDashboard(markdownContainer);
+    }
+  }
 
   const frame = viewport.querySelector('.tool-frame');
   if (frame) {
