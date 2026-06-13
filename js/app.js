@@ -409,10 +409,10 @@ function styleEmbeddedTool(frame) {
     frameWindow.scrollTo(0, 0);
     frameWindow.requestAnimationFrame(() => frameWindow.scrollTo(0, 0));
 
-    frameDocument.querySelectorAll('a[href="index.html"], a[href="/"], a.nav-link').forEach((link) => {
+    frameDocument.querySelectorAll('a[href$="index.html"], a[href="/"], a.nav-link').forEach((link) => {
       link.addEventListener('click', (event) => {
         const href = link.getAttribute('href');
-        if (href === 'index.html' || href === '/') {
+        if (href === '/' || href?.endsWith('index.html')) {
           event.preventDefault();
           navigate('/');
         }
