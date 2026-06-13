@@ -5,6 +5,12 @@ const MAX_RENDER_ROWS  = 1000; // Reduced from 2000
 const VIRTUAL_BUFFER_SIZE = 50; // Increased back to 50 for better visibility
 const OBJECT_POOL_SIZE = 200; // Reduced from 500
 const DEBOUNCE_DELAY = 100; // Added for scroll events
+const PACKAGE_FILE_TYPES = ['CustMast', 'CustPref', 'CustSubs', 'CustAttr'];
+const PACKAGE_FILE_PATTERN = /^(.*)-(CustMast|CustPref|CustSubs|CustAttr)\.txt$/i;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const PACKAGE_FINDINGS_BATCH_SIZE = 200;
+const MAX_STORED_PACKAGE_FINDINGS = 10000;
+const PACKAGE_TYPE_SCAN_BYTES = 512 * 1024;
 
 // Make constants configurable for performance mode
 Object.defineProperty(window, 'LINES_PER_PAGE', { value: LINES_PER_PAGE, writable: true });
@@ -570,6 +576,11 @@ class DatabaseChecker {
     this.processedLinesCount = 0;
     this.isChecking = false;
     this.worker = null;
+    this.databasePackages = new Map();
+    this.selectedPackageKey = '';
+    this.selectedPackage = null;
+    this.lastPackageResult = null;
+    this.packageValidationToken = 0;
     
     // Performance mode detection
     this.performanceMode = this.detectPerformanceMode();
@@ -1163,8 +1174,528 @@ class DatabaseChecker {
     }, 3000);
   }
 
+  async readPackageFiles(packageInfo) {
+    const files = {};
+    const packageFiles = [];
+
+    for (const type of PACKAGE_FILE_TYPES) {
+      const handle = packageInfo.files.get(type);
+      if (!handle) continue;
+
+      const file = await handle.getFile();
+      packageFiles.push({ type, file });
+    }
+
+    const totalBytes = packageFiles.reduce((total, item) => total + item.file.size, 0);
+    let loadedBytes = 0;
+
+    for (const { type, file } of packageFiles) {
+      const lines = await this.readLinesFromFile(file, (fileLoaded, previousFileLoaded) => {
+        loadedBytes += fileLoaded - previousFileLoaded;
+        this.updatePercent(loadedBytes, totalBytes, `Reading ${type}...`);
+      });
+
+      files[type] = {
+        type,
+        name: file.name,
+        size: file.size,
+        lines
+      };
+    }
+
+    return files;
+  }
+
+  async readLinesFromFile(file, onProgress) {
+    const reader = file.stream().getReader();
+    const decoder = new TextDecoder();
+    const lines = [];
+    let buffer = '';
+    let previousLoaded = 0;
+    let loaded = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        loaded += value.byteLength;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex = buffer.indexOf('\n');
+        while (newlineIndex !== -1) {
+          const line = buffer.slice(0, newlineIndex).replace(/\r$/, '');
+          lines.push(line);
+          buffer = buffer.slice(newlineIndex + 1);
+          newlineIndex = buffer.indexOf('\n');
+        }
+
+        if (onProgress) onProgress(loaded, previousLoaded);
+        previousLoaded = loaded;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      buffer += decoder.decode();
+      const finalLine = buffer.replace(/\r$/, '');
+      if (finalLine !== '') lines.push(finalLine);
+    } finally {
+      reader.releaseLock();
+    }
+
+    return lines;
+  }
+
+  parsePackageFile(file, expectedFields, findings) {
+    if (!file) return [];
+
+    const records = [];
+    file.lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+      if (line === '') {
+        findings.push(this.createFinding('Malformed Row', file.type, lineNumber, '', 'Blank row is not allowed.'));
+        return;
+      }
+
+      const fields = line.split('|');
+      const id = (fields[0] || '').trim();
+      const email = (fields[1] || '').trim();
+
+      if (fields.length !== expectedFields) {
+        findings.push(this.createFinding(
+          'Invalid Format',
+          file.type,
+          lineNumber,
+          id,
+          `Expected ${expectedFields} fields including the trailing empty field.`,
+          expectedFields,
+          fields.length
+        ));
+      }
+
+      if (!line.endsWith('|')) {
+        findings.push(this.createFinding('Invalid Format', file.type, lineNumber, id, 'Row must end with a pipe delimiter.'));
+      }
+
+      if (!id) {
+        findings.push(this.createFinding('Missing Required Fields', file.type, lineNumber, '', 'Customer ID is empty.'));
+      }
+      if (!email) {
+        findings.push(this.createFinding('Missing Required Fields', file.type, lineNumber, id, 'Email is empty.'));
+      } else if (!EMAIL_REGEX.test(email)) {
+        findings.push(this.createFinding('Invalid Email', file.type, lineNumber, id, `Invalid email: ${email}`));
+      }
+
+      const idMatch = id.match(/^(.*)-(\d{6})$/);
+      if (id && !idMatch) {
+        findings.push(this.createFinding(
+          'Invalid Customer ID',
+          file.type,
+          lineNumber,
+          id,
+          'Customer ID must end with a six-digit sequence.'
+        ));
+      }
+
+      records.push({
+        file: file.type,
+        lineNumber,
+        id,
+        email,
+        attribute: fields[2] || '',
+        valueRaw: fields[3] || '',
+        campaignId: idMatch ? idMatch[1] : ''
+      });
+    });
+
+    return records;
+  }
+
+  createFinding(category, file, lineNumber, customerId, message, expected = '', actual = '') {
+    return { category, file, lineNumber, customerId, message, expected, actual };
+  }
+
+  describeInvalidKrhredValue(valueRaw) {
+    const value = valueRaw.trim();
+    const reasons = [];
+
+    if (!value) reasons.push('value is empty');
+    if (value === '.') reasons.push('value only contains a dot');
+    if (valueRaw !== value) reasons.push('value contains leading or trailing whitespace');
+    if (value.includes('  ')) reasons.push('value contains repeated spaces');
+
+    const visibleValue = valueRaw === ''
+      ? '(empty)'
+      : valueRaw
+        .replace(/\t/g, '⇥')
+        .replace(/ /g, '·')
+        .slice(0, 120);
+
+    return {
+      reasons,
+      actual: valueRaw.length > 120 ? `${visibleValue}…` : visibleValue
+    };
+  }
+
+  createFindingsCollector() {
+    const findings = [];
+    findings.totalCount = 0;
+    findings.fileCounts = new Map();
+    findings.push = function (...items) {
+      items.forEach((finding) => {
+        this.totalCount += 1;
+        this.fileCounts.set(finding.file, (this.fileCounts.get(finding.file) || 0) + 1);
+        if (this.length < MAX_STORED_PACKAGE_FINDINGS) {
+          Array.prototype.push.call(this, finding);
+        }
+      });
+      return this.length;
+    };
+    return findings;
+  }
+
+  addDuplicateFindings(records, keyBuilder, label, findings) {
+    const seen = new Map();
+
+    records.forEach((record) => {
+      const key = keyBuilder(record);
+      if (!key) return;
+      if (seen.has(key)) {
+        findings.push(this.createFinding(
+          'Duplicate Record',
+          record.file,
+          record.lineNumber,
+          record.id,
+          `Duplicate ${label}; first found on line ${seen.get(key)}.`
+        ));
+      } else {
+        seen.set(key, record.lineNumber);
+      }
+    });
+  }
+
+  validateDatabasePackage(files, packageInfo) {
+    const findings = this.createFindingsCollector();
+
+    PACKAGE_FILE_TYPES.forEach((type) => {
+      if (!files[type]) {
+        findings.push(this.createFinding('Missing File', type, 0, '', `${type}.txt is missing from this package.`));
+      }
+    });
+
+    const records = {
+      CustMast: this.parsePackageFile(files.CustMast, 20, findings),
+      CustPref: this.parsePackageFile(files.CustPref, 5, findings),
+      CustSubs: this.parsePackageFile(files.CustSubs, 5, findings),
+      CustAttr: this.parsePackageFile(files.CustAttr, 5, findings)
+    };
+
+    this.addDuplicateFindings(records.CustMast, (row) => row.id, 'customer ID', findings);
+    this.addDuplicateFindings(records.CustPref, (row) => row.id, 'customer ID', findings);
+    this.addDuplicateFindings(records.CustSubs, (row) => row.id, 'customer ID', findings);
+    this.addDuplicateFindings(
+      records.CustAttr,
+      (row) => `${row.id}\u0000${row.attribute.trim().toUpperCase()}`,
+      'customer attribute',
+      findings
+    );
+
+    const attrTypes = new Set(records.CustAttr.map((row) => row.attribute.trim()).filter(Boolean));
+    const dynamicUnits = [...attrTypes].filter((type) => unitRegex.test(type));
+    const databaseType = dynamicUnits.length ? 'Dynamic' : 'Static';
+
+    records.CustPref.forEach((row) => {
+      const attribute = row.attribute.trim();
+      const value = row.valueRaw.trim();
+      if (attribute !== 'CMPG_ID') {
+        findings.push(this.createFinding('Invalid Preference', row.file, row.lineNumber, row.id, 'CustPref attribute must be CMPG_ID.', 'CMPG_ID', attribute));
+      }
+      if (row.campaignId && value !== row.campaignId) {
+        findings.push(this.createFinding('Campaign Mismatch', row.file, row.lineNumber, row.id, 'CMPG_ID does not match the customer ID prefix.', row.campaignId, value));
+      }
+    });
+
+    records.CustSubs.forEach((row) => {
+      const subscription = row.attribute.trim();
+      const status = row.valueRaw.trim();
+      if (!subscription) {
+        findings.push(this.createFinding('Invalid Subscription', row.file, row.lineNumber, row.id, 'Subscription name is empty.'));
+      }
+      if (status !== 'Y') {
+        findings.push(this.createFinding('Invalid Subscription', row.file, row.lineNumber, row.id, 'Subscription status must be Y.', 'Y', status));
+      }
+    });
+
+    const attrById = new Map();
+    records.CustAttr.forEach((row) => {
+      const attribute = row.attribute.trim();
+      const valueRaw = row.valueRaw;
+      const value = valueRaw.trim();
+
+      if (!attrById.has(row.id)) attrById.set(row.id, new Set());
+      attrById.get(row.id).add(attribute);
+
+      if (attribute === 'CMPG_ID') {
+        if (row.campaignId && value !== row.campaignId) {
+          findings.push(this.createFinding('Campaign Mismatch', row.file, row.lineNumber, row.id, 'CMPG_ID does not match the customer ID prefix.', row.campaignId, value));
+        }
+        return;
+      }
+
+      if (databaseType === 'Static') {
+        findings.push(this.createFinding('Unexpected Attribute', row.file, row.lineNumber, row.id, `Static database cannot contain ${attribute || 'an empty attribute'}.`));
+        return;
+      }
+
+      if (!unitRegex.test(attribute)) {
+        findings.push(this.createFinding('Invalid KRHRED Format', row.file, row.lineNumber, row.id, `Invalid KRHRED attribute: ${attribute || '(empty)'}`));
+      }
+      const invalidValue = this.describeInvalidKrhredValue(valueRaw);
+      if (invalidValue.reasons.length) {
+        findings.push(this.createFinding(
+          'Invalid KRHRED Data',
+          row.file,
+          row.lineNumber,
+          row.id,
+          `${attribute || 'KRHRED attribute'}: ${invalidValue.reasons.join('; ')}.`,
+          'Non-empty text without dot-only values, outer whitespace, or repeated spaces',
+          invalidValue.actual
+        ));
+      }
+      if (value.length > 60) {
+        findings.push(this.createFinding('KRHRED Too Long', row.file, row.lineNumber, row.id, `${attribute} contains ${value.length} characters.`, '60 or fewer', value.length));
+      }
+    });
+
+    const mastById = new Map(records.CustMast.filter((row) => row.id).map((row) => [row.id, row]));
+    const baselineIds = [...mastById.keys()];
+
+    ['CustPref', 'CustSubs', 'CustAttr'].forEach((type) => {
+      const rows = records[type];
+      const rowsById = new Map();
+      rows.forEach((row) => {
+        if (!rowsById.has(row.id)) rowsById.set(row.id, []);
+        rowsById.get(row.id).push(row);
+      });
+
+      baselineIds.forEach((id) => {
+        const relatedRows = rowsById.get(id);
+        if (!relatedRows?.length) {
+          findings.push(this.createFinding('Missing Customer', type, 0, id, `${id} exists in CustMast but is missing from ${type}.`));
+          return;
+        }
+
+        relatedRows.forEach((row) => {
+          const expectedEmail = mastById.get(id).email;
+          if (row.email !== expectedEmail) {
+            findings.push(this.createFinding('Email Mismatch', type, row.lineNumber, id, 'Email does not match CustMast.', expectedEmail, row.email));
+          }
+        });
+      });
+
+      rowsById.forEach((relatedRows, id) => {
+        if (id && !mastById.has(id)) {
+          const row = relatedRows[0];
+          findings.push(this.createFinding('Extra Customer', type, row.lineNumber, id, `${id} does not exist in CustMast.`));
+        }
+      });
+    });
+
+    baselineIds.forEach((id) => {
+      const attributes = attrById.get(id);
+      if (!attributes) return;
+
+      if (!attributes.has('CMPG_ID')) {
+        findings.push(this.createFinding('Missing Attribute', 'CustAttr', 0, id, 'CMPG_ID attribute is missing.'));
+      }
+      if (databaseType === 'Dynamic') {
+        dynamicUnits.forEach((unit) => {
+          if (!attributes.has(unit)) {
+            findings.push(this.createFinding('Missing Attribute', 'CustAttr', 0, id, `${unit} is missing.`));
+          }
+        });
+      }
+    });
+
+    const fileStats = PACKAGE_FILE_TYPES.map((type) => ({
+      type,
+      present: Boolean(files[type]),
+      rows: records[type].length,
+      errors: findings.fileCounts.get(type) || 0
+    }));
+
+    return {
+      packageName: packageInfo.key,
+      databaseType,
+      customerCount: mastById.size,
+      findings,
+      findingCount: findings.totalCount,
+      findingsTruncated: findings.totalCount > findings.length,
+      fileStats,
+      dynamicUnits: dynamicUnits.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    };
+  }
+
+  async checkDatabasePackage() {
+    if (!this.selectedPackage) {
+      alert('Please select a database package first.');
+      return;
+    }
+
+    const packageInfo = this.selectedPackage;
+    const packageKey = packageInfo.key;
+    const validationToken = ++this.packageValidationToken;
+
+    this.isChecking = true;
+    this.updateCheckButton();
+    this.showLoading(true, 'Checking database package...');
+
+    try {
+      const files = await this.readPackageFiles(packageInfo);
+      const result = this.validateDatabasePackage(files, packageInfo);
+
+      if (validationToken !== this.packageValidationToken || this.selectedPackageKey !== packageKey) {
+        return;
+      }
+
+      this.lastPackageResult = result;
+      this.renderPackageResults(result);
+      this.updatePackageStatus(result);
+    } catch (error) {
+      console.error('Package validation failed:', error);
+      this.showToast(`Package validation failed: ${error.message}`, 'error');
+    } finally {
+      if (validationToken === this.packageValidationToken) {
+        this.isChecking = false;
+        this.updateCheckButton();
+        this.showLoading(false);
+      }
+    }
+  }
+
+  updatePackageStatus(result = null) {
+    const status = document.getElementById('packageStatus');
+    if (!status) return;
+
+    if (result) {
+      const valid = result.findingCount === 0;
+      status.className = `package-status ${valid ? 'valid' : 'invalid'}`;
+      status.textContent = `${result.databaseType} Database · ${valid ? 'Valid' : `${result.findingCount} invalid`}`;
+      return;
+    }
+
+    if (this.selectedPackage) {
+      const present = PACKAGE_FILE_TYPES.filter((type) => this.selectedPackage.files.has(type)).length;
+      status.className = `package-status ${present === 4 ? 'ready' : 'invalid'}`;
+      status.textContent = `${this.selectedPackage.key} · ${present}/4 files`;
+    } else {
+      status.className = 'package-status';
+      status.textContent = 'No database package selected';
+    }
+  }
+
+  renderPackageResults(result) {
+    const container = document.getElementById('resultsContainer');
+    if (!container) return;
+
+    const valid = result.findingCount === 0;
+    const fileCards = result.fileStats.map((file) => `
+      <div class="package-file-card ${file.present && !file.errors ? 'valid' : 'invalid'}">
+        <div>
+          <strong>${escapeHtml(file.type)}</strong>
+          <span>${file.present ? `${file.rows.toLocaleString()} rows` : 'Missing file'}</span>
+        </div>
+        <span class="package-file-state">${file.present && !file.errors ? 'Valid' : `${file.errors} invalid`}</span>
+      </div>
+    `).join('');
+
+    container.innerHTML = `
+      <section class="package-results">
+        <header class="package-summary ${valid ? 'valid' : 'invalid'}">
+          <div>
+            <span class="package-type">${escapeHtml(result.databaseType)} Database</span>
+            <h4>${valid ? 'Package is valid' : `${result.findingCount} invalid finding${result.findingCount === 1 ? '' : 's'}`}</h4>
+            <p>${result.customerCount.toLocaleString()} customers · ${escapeHtml(result.packageName)}</p>
+          </div>
+          <i class="fa-solid ${valid ? 'fa-circle-check' : 'fa-triangle-exclamation'}"></i>
+        </header>
+        <div class="package-file-grid">${fileCards}</div>
+        ${result.databaseType === 'Dynamic' && result.dynamicUnits.length ? `
+          <div class="package-units"><strong>KRHRED Units</strong>${result.dynamicUnits.map((unit) => `<span>${escapeHtml(unit)}</span>`).join('')}</div>
+        ` : ''}
+        <div class="package-findings"></div>
+      </section>
+    `;
+
+    const findingsContainer = container.querySelector('.package-findings');
+    if (valid) {
+      findingsContainer.innerHTML = `
+        <div class="package-valid-state">
+          <i class="fa-solid fa-circle-check"></i>
+          <strong>All four files are consistent.</strong>
+          <span>No invalid records were found.</span>
+        </div>
+      `;
+      return;
+    }
+
+    this.renderPackageFindingBatch(result, findingsContainer, 0);
+  }
+
+  renderPackageFindingBatch(result, container, startIndex) {
+    const oldControls = container.querySelector('.package-findings-controls');
+    if (oldControls) oldControls.remove();
+
+    const endIndex = Math.min(startIndex + PACKAGE_FINDINGS_BATCH_SIZE, result.findings.length);
+    const batchHtml = result.findings.slice(startIndex, endIndex).map((finding) => `
+      <article class="package-finding">
+        <div class="package-finding-head">
+          <strong>${escapeHtml(finding.category)}</strong>
+          <span>${escapeHtml(finding.file)}${finding.lineNumber ? ` · Line ${finding.lineNumber}` : ''}</span>
+        </div>
+        <p>${escapeHtml(finding.message)}</p>
+        ${finding.expected !== '' || finding.actual !== '' ? `
+          <div class="package-expected">
+            <span><b>Expected:</b> ${escapeHtml(String(finding.expected))}</span>
+            <span><b>Actual:</b> ${escapeHtml(String(finding.actual))}</span>
+          </div>
+        ` : ''}
+      </article>
+    `).join('');
+
+    container.insertAdjacentHTML('beforeend', batchHtml);
+
+    if (endIndex < result.findingCount) {
+      const controls = document.createElement('div');
+      controls.className = 'package-findings-controls';
+
+      const status = document.createElement('span');
+      status.textContent = endIndex < result.findings.length
+        ? `Showing ${endIndex.toLocaleString()} of ${result.findingCount.toLocaleString()} findings`
+        : `Showing the first ${result.findings.length.toLocaleString()} of ${result.findingCount.toLocaleString()} findings`;
+      controls.appendChild(status);
+
+      if (endIndex < result.findings.length) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary';
+        button.innerHTML = '<i class="fa-solid fa-plus"></i><span>Load more</span>';
+        button.addEventListener('click', () => {
+          this.renderPackageFindingBatch(result, container, endIndex);
+        });
+        controls.appendChild(button);
+      }
+
+      container.appendChild(controls);
+    }
+  }
+
   /* ========= Check database (optimized with full validation) ===== */
   async checkDatabase(){
+    if (this.selectedPackage) {
+      await this.checkDatabasePackage();
+      return;
+    }
+
     if (!this.currentLines.length){ alert('Please load a file first'); return; }
     this.isChecking = true; 
     this.updateCheckButton(); 
@@ -1495,7 +2026,7 @@ class DatabaseChecker {
       this.checkBtn.classList.add('btn-danger');
       this.checkBtn.classList.remove('btn-primary');
     } else {
-      this.checkBtn.innerHTML = `<i class="fa-solid fa-list-check"></i><span>Check Data</span>`;
+      this.checkBtn.innerHTML = `<i class="fa-solid fa-list-check"></i><span>Check Database Package</span>`;
       this.checkBtn.classList.remove('btn-danger');
       this.checkBtn.classList.add('btn-primary');
     }
@@ -1559,6 +2090,7 @@ class DatabaseChecker {
   async openFolder(){
     try{
       const dirHandle = await window.showDirectoryPicker();
+      this.showLoading(true, 'Scanning database packages...');
       await this.buildFileTree(dirHandle);
     } catch(err){
       if (err.name === 'AbortError') {
@@ -1572,32 +2104,223 @@ class DatabaseChecker {
         console.error('Error opening folder:', err);
         alert('Error opening folder: ' + err.message);
       }
+    } finally {
+      this.showLoading(false);
     }
   }
 
   async buildFileTree(dirHandle, parentUl = document.querySelector('#fileList ul')){
     parentUl.innerHTML = '';
-    const entries = [];
-    for await (const entry of dirHandle.values()) entries.push(entry);
-    entries.sort((a,b)=>a.name.localeCompare(b.name));
+    this.databasePackages.clear();
+    this.selectedPackageKey = '';
+    this.selectedPackage = null;
+    this.lastPackageResult = null;
 
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind !== 'file') continue;
+      const match = entry.name.match(PACKAGE_FILE_PATTERN);
+      if (!match) continue;
+
+      const key = match[1];
+      const type = PACKAGE_FILE_TYPES.find((name) => name.toLowerCase() === match[2].toLowerCase());
+      if (!this.databasePackages.has(key)) {
+        this.databasePackages.set(key, { key, files: new Map() });
+      }
+      this.databasePackages.get(key).files.set(type, entry);
+    }
+
+    const packages = [...this.databasePackages.values()];
+    for (const packageInfo of packages) {
+      await this.scanPackageMetadata(packageInfo);
+    }
+    packages.sort((a, b) => {
+      if (a.dateTimestamp !== b.dateTimestamp) return b.dateTimestamp - a.dateTimestamp;
+      return b.key.localeCompare(a.key, undefined, { numeric: true });
+    });
     const frag = document.createDocumentFragment();
-    for (const entry of entries){
-      if (entry.kind === 'file' && entry.name.includes('CustAttr.txt')){
-        const li = document.createElement('li');
-        li.className = 'file';
-        li.textContent = entry.name;
-        li.title = entry.name;
-        li.addEventListener('click', async (e)=>{
-          e.stopPropagation();
-          await this.loadFile(entry);
-          document.querySelectorAll('#fileList li').forEach(el=>el.classList.remove('selected'));
-          li.classList.add('selected');
-        });
-        frag.appendChild(li);
+
+    packages.forEach((packageInfo) => {
+      const heading = document.createElement('li');
+      const fileCount = PACKAGE_FILE_TYPES.filter((type) => packageInfo.files.has(type)).length;
+      heading.className = `package-heading ${fileCount === PACKAGE_FILE_TYPES.length ? 'complete' : 'incomplete'}`;
+      heading.innerHTML = `
+        <span>${escapeHtml(packageInfo.key)}</span>
+        <small>${fileCount}/4</small>
+      `;
+      heading.addEventListener('click', () => this.selectPackage(packageInfo.key));
+      frag.appendChild(heading);
+    });
+
+    parentUl.appendChild(frag);
+
+    if (!packages.length) {
+      const empty = document.createElement('li');
+      empty.className = 'package-empty';
+      empty.textContent = 'No database package files found';
+      parentUl.appendChild(empty);
+      this.updatePackageStatus();
+      return;
+    }
+
+    const initialPackage = packages.find((packageInfo) => packageInfo.files.size === 4) || packages[0];
+    this.selectPackage(initialPackage.key);
+  }
+
+  async scanPackageMetadata(packageInfo) {
+    packageInfo.date = this.extractPackageDate(packageInfo.key);
+    packageInfo.dateTimestamp = packageInfo.date?.getTime() || 0;
+    packageInfo.fileMetadata = new Map();
+    packageInfo.totalSize = 0;
+    packageInfo.databaseType = 'Unknown';
+    packageInfo.dynamicUnits = [];
+
+    for (const type of PACKAGE_FILE_TYPES) {
+      const handle = packageInfo.files.get(type);
+      if (!handle) continue;
+
+      const file = await handle.getFile();
+      packageInfo.fileMetadata.set(type, {
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified
+      });
+      packageInfo.totalSize += file.size;
+
+      if (type === 'CustAttr') {
+        const firstChunk = await file.slice(0, PACKAGE_TYPE_SCAN_BYTES).text();
+        const tailStart = Math.max(0, file.size - PACKAGE_TYPE_SCAN_BYTES);
+        const lastChunk = tailStart > 0
+          ? await file.slice(tailStart, file.size).text()
+          : '';
+        const sample = `${firstChunk}\n${lastChunk}`;
+        const units = [...sample.matchAll(/KRHRED(?:_Unit)?_\d+/gi)]
+          .map((match) => match[0])
+          .filter((unit, index, values) => values.indexOf(unit) === index)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        packageInfo.dynamicUnits = units;
+        packageInfo.databaseType = units.length ? 'Dynamic' : 'Static';
       }
     }
-    parentUl.appendChild(frag);
+  }
+
+  extractPackageDate(packageKey) {
+    const match = packageKey.match(/^(\d{4})(\d{2})(\d{2})/);
+    if (!match) return null;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const maximumYear = new Date().getFullYear() + 1;
+    if (year < 2000 || year > maximumYear) return null;
+
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() !== year
+      || date.getMonth() !== month - 1
+      || date.getDate() !== day
+    ) {
+      return null;
+    }
+    return date;
+  }
+
+  formatFileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / (1024 ** unitIndex);
+    return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+  }
+
+  async selectPackage(packageKey) {
+    const packageInfo = this.databasePackages.get(packageKey);
+    if (!packageInfo) return;
+
+    this.packageValidationToken += 1;
+    this.isChecking = false;
+    this.selectedPackageKey = packageKey;
+    this.selectedPackage = packageInfo;
+    this.lastPackageResult = null;
+    this.checkBtn.disabled = false;
+    this.updateCheckButton();
+    this.showLoading(false);
+
+    document.querySelectorAll('#fileList .package-heading').forEach((heading) => {
+      heading.classList.toggle('active', heading.querySelector('span')?.textContent === packageKey);
+    });
+    const currentPath = document.getElementById('currentPath');
+    if (currentPath) currentPath.textContent = packageKey;
+
+    this.resetPackageResults(packageInfo);
+    this.updatePackageStatus();
+    this.renderPackageOverview(packageInfo);
+  }
+
+  renderPackageOverview(packageInfo) {
+    const container = document.getElementById('databaseContent');
+    const searchButton = document.getElementById('openSearchModalBtn');
+    if (searchButton) searchButton.disabled = true;
+    if (!container) return;
+
+    if (this.vs) {
+      this.vs.destroy();
+    }
+    this.currentLines = [];
+    this.processedLinesCount = 0;
+
+    const dateLabel = packageInfo.date
+      ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(packageInfo.date)
+      : 'Date not detected';
+    const fileCount = PACKAGE_FILE_TYPES.filter((type) => packageInfo.files.has(type)).length;
+    const fileCards = PACKAGE_FILE_TYPES.map((type) => {
+      const metadata = packageInfo.fileMetadata.get(type);
+      return `
+        <div class="overview-file ${metadata ? 'present' : 'missing'}">
+          <span>${escapeHtml(type)}</span>
+          <strong>${metadata ? this.formatFileSize(metadata.size) : 'Missing'}</strong>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <section class="package-overview">
+        <div class="overview-hero">
+          <span class="overview-type ${packageInfo.databaseType.toLowerCase()}">${escapeHtml(packageInfo.databaseType)} Database</span>
+          <h4>${escapeHtml(packageInfo.key)}</h4>
+          <p>${dateLabel}</p>
+        </div>
+        <div class="overview-stats">
+          <div><span>Total databases</span><strong>${this.databasePackages.size}</strong></div>
+          <div><span>Package size</span><strong>${this.formatFileSize(packageInfo.totalSize)}</strong></div>
+          <div><span>Files ready</span><strong>${fileCount}/4</strong></div>
+        </div>
+        <div class="overview-files">${fileCards}</div>
+        ${packageInfo.databaseType === 'Dynamic' && packageInfo.dynamicUnits.length ? `
+          <div class="overview-units">
+            <span>Detected KRHRED</span>
+            <div>${packageInfo.dynamicUnits.map((unit) => `<code>${escapeHtml(unit)}</code>`).join('')}</div>
+          </div>
+        ` : ''}
+        <p class="overview-note">Raw database lines are hidden from the main workspace. Run validation to inspect invalid records.</p>
+      </section>
+    `;
+
+    const currentPath = document.getElementById('currentPath');
+    if (currentPath) currentPath.textContent = packageInfo.key;
+  }
+
+  resetPackageResults(packageInfo) {
+    const container = document.getElementById('resultsContainer');
+    if (!container) return;
+
+    const fileCount = PACKAGE_FILE_TYPES.filter((type) => packageInfo.files.has(type)).length;
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-list-check"></i>
+        <p>${fileCount}/4 files ready. Check this package to view validation results.</p>
+      </div>
+    `;
   }
 
   clearResults(){
@@ -2162,51 +2885,6 @@ function escapeHtml(str){
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[s]));
 }
-
-/* ========= Floating Action Button ========= */
-document.addEventListener('DOMContentLoaded', () => {
-  const fabMenu = document.getElementById('fabMenu');
-  const fabContainer = document.querySelector('.fab-container');
-  const fabRefresh = document.getElementById('fabRefresh');
-  const fabSettings = document.getElementById('fabSettings');
-  const fabHelp = document.getElementById('fabHelp');
-  
-  // Toggle FAB menu
-  if (fabMenu) {
-    fabMenu.addEventListener('click', () => {
-      fabContainer.classList.toggle('active');
-    });
-  }
-  
-  // Close FAB menu when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!fabContainer.contains(e.target)) {
-      fabContainer.classList.remove('active');
-    }
-  });
-  
-  // FAB item actions
-  if (fabRefresh) {
-    fabRefresh.addEventListener('click', () => {
-      location.reload();
-    });
-  }
-  
-  if (fabSettings) {
-    fabSettings.addEventListener('click', () => {
-      alert('Settings feature coming soon!');
-    });
-  }
-  
-  if (fabHelp) {
-    fabHelp.addEventListener('click', () => {
-      alert('Help: \n1. Open folder with database files\n2. Select a file to view\n3. Click "Check Data" to validate\n4. View results in the right panel');
-    });
-  }
-  
-  // Update quick stats
-  updateQuickStats();
-});
 
 /* ========= Quick Stats Update ========= */
 function updateQuickStats() {

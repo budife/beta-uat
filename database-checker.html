@@ -32,7 +32,7 @@
 
   <!-- CSS -->
   <link rel="stylesheet" href="css/theme.css">
-  <link rel="stylesheet" href="css/pages-database-checker.css">
+  <link rel="stylesheet" href="css/pages-database-checker.css?v=6.0.1.10">
 
   
 
@@ -98,49 +98,21 @@
 
       </button>
 
+      <p id="packageStatus" class="package-status">No database package selected</p>
+
     </div>
 
     
 
-    <!-- File List -->
+    <!-- Database Packages -->
 
     <div class="sidebar-section">
 
-      <h3>Files</h3>
+      <h3>Packages</h3>
 
       <div id="fileList" class="file-list">
 
         <ul></ul>
-
-      </div>
-
-    </div>
-
-    
-
-    <!-- Quick Stats -->
-
-    <div class="sidebar-section">
-
-      <h3>Quick Stats</h3>
-
-      <div id="quickStats" class="stats-grid">
-
-        <div class="stat-item">
-
-          <span class="stat-value" id="totalRows">0</span>
-
-          <span class="stat-label">Database</span>
-
-        </div>
-
-        <div class="stat-item">
-
-          <span class="stat-value" id="errorCount">0</span>
-
-          <span class="stat-label">Errors</span>
-
-        </div>
 
       </div>
 
@@ -160,7 +132,7 @@
 
       <div class="toolbar-left">
         <div class="title-with-loading">
-          <h1>Database Validation</h1>
+          <h1>Database Package Validation</h1>
           
           <div id="loadingWrapper" class="loading-indicator" style="visibility:hidden;">
 
@@ -185,7 +157,7 @@
 
         <button id="checkBtn" class="btn btn-primary" type="button" disabled>
 
-          <i class="fa-solid fa-list-check"></i><span>Check Data</span>
+          <i class="fa-solid fa-list-check"></i><span>Check Database Package</span>
 
         </button>
 
@@ -205,13 +177,13 @@
 
     <div class="content-area">
 
-      <!-- Data Preview Panel -->
+      <!-- Package Overview Panel -->
 
       <div class="panel data-panel">
 
         <div class="panel-header">
 
-          <h3>Data Preview</h3>
+          <h3>Package Overview</h3>
 
         </div>
 
@@ -221,9 +193,9 @@
 
             <div class="empty-state">
 
-              <i class="fa-solid fa-database"></i>
+              <i class="fa-solid fa-box-archive"></i>
 
-              <p>Open a database file to begin</p>
+              <p>Open a folder to scan database packages</p>
 
             </div>
 
@@ -272,42 +244,6 @@
         </div>
 
       </div>
-
-    </div>
-
-  </div>
-
-
-
-  <!-- Floating Action Button -->
-
-  <div class="fab-container">
-
-    <button class="fab" id="fabMenu" title="Quick Actions">
-
-      <i class="fa-solid fa-plus"></i>
-
-    </button>
-
-    <div class="fab-menu" id="fabMenuItems">
-
-      <button class="fab-item" id="fabRefresh" title="Refresh Data">
-
-        <i class="fa-solid fa-refresh"></i>
-
-      </button>
-
-      <button class="fab-item" id="fabSettings" title="Settings">
-
-        <i class="fa-solid fa-cog"></i>
-
-      </button>
-
-      <button class="fab-item" id="fabHelp" title="Help">
-
-        <i class="fa-solid fa-question"></i>
-
-      </button>
 
     </div>
 
@@ -415,7 +351,7 @@
 
 <script src="js/footer.js" defer></script>
 <script src="js/version-config.js" defer></script>
-<script src="js/pages-database-checker.js" defer></script>
+<script src="js/pages-database-checker.js?v=6.0.1.11" defer></script>
 
 </body>
 

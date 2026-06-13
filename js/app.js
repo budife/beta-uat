@@ -326,7 +326,11 @@ function enhanceHomeDashboard(container) {
   });
 
   const updates = container.querySelector('[data-section="recent-updates"]');
-  updates?.querySelector('li')?.classList.add('latest-update');
+  if (updates) {
+    const updateItems = Array.from(updates.querySelectorAll('li'));
+    updateItems.slice(10).forEach((item) => item.remove());
+    updateItems[0]?.classList.add('latest-update');
+  }
 
   const usefulLinks = container.querySelector('[data-section="useful-links"]');
   usefulLinks?.querySelectorAll('li').forEach((item) => {
@@ -370,15 +374,40 @@ function closeSidebar() {
 function styleEmbeddedTool(frame) {
   try {
     const frameDocument = frame.contentDocument;
-    if (!frameDocument) return;
+    const frameWindow = frame.contentWindow;
+    if (!frameDocument || !frameWindow) return;
 
     const style = frameDocument.createElement('style');
     style.textContent = `
-      body { padding-top: 0 !important; min-height: 100vh !important; }
+      html, body {
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        overflow-x: hidden !important;
+      }
+      body { padding-top: 0 !important; min-height: 100% !important; }
       body > .header, body > .footer { display: none !important; }
-      main#main-content { min-height: 100vh !important; }
+      main#main-content {
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+      main#main-content > .sidebar,
+      main#main-content > .main-content,
+      .content-area,
+      .panel,
+      .panel-body {
+        min-height: 0 !important;
+      }
     `;
     frameDocument.head.appendChild(style);
+    frameWindow.history.scrollRestoration = 'manual';
+    frameWindow.scrollTo(0, 0);
+    frameWindow.requestAnimationFrame(() => frameWindow.scrollTo(0, 0));
 
     frameDocument.querySelectorAll('a[href="index.html"], a[href="/"], a.nav-link').forEach((link) => {
       link.addEventListener('click', (event) => {
@@ -442,7 +471,8 @@ function renderPage(route, markdown) {
     `
     : '';
 
-  viewport.innerHTML = `<div class="content-page">${intro}${markdownContent}${toolFrame}</div>`;
+  const pageClass = tool ? 'content-page content-page--tool' : 'content-page';
+  viewport.innerHTML = `<div class="${pageClass}">${intro}${markdownContent}${toolFrame}</div>`;
 
   const markdownContainer = viewport.querySelector('.markdown-content');
   if (markdownContainer) {
